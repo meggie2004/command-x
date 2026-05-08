@@ -7,6 +7,17 @@
 
 import SwiftUI
 
+
+class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            // Se non ci sono finestre visibili, mostra la prima disponibile
+            sender.windows.first?.makeKeyAndOrderFront(nil)
+        }
+        return true
+    }
+}
+
 @main
 struct cmd_xApp: App {
     
@@ -35,8 +46,13 @@ struct cmd_xApp: App {
             
             Button("settings") {
                 NSApp.activate(ignoringOtherApps: true) // forza l'apertura della finestra principale
-                if let window = NSApp.windows.first {
+                
+                //per vedere se c'è già una finestra aperta
+                if let window = NSApp.windows.first(where: { $0.canBecomeKey }) {
                     window.makeKeyAndOrderFront(nil)
+                } else {
+                    let url = URL(string: "cmd-x2://settings")!
+                    NSWorkspace.shared.open(url)
                 }
             }
             

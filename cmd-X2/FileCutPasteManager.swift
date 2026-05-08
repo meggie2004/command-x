@@ -160,8 +160,16 @@ final class FileCutPasteManager: ObservableObject {
                 }
                 return
             }
+            
+            if !self.cutItems.isEmpty{
+                self.setFilesHidden(self.cutItems, hidden: false)
+            }
+            
             let urls = paths.compactMap { URL(fileURLWithPath: $0) }
             self.cutItems = urls
+            
+            //nascondi i file tagliati
+            self.setFilesHidden(urls, hidden: true)
             
             let pasteboard = NSPasteboard.general
             pasteboard.declareTypes([.string], owner: nil)
@@ -191,10 +199,15 @@ final class FileCutPasteManager: ObservableObject {
                 let destURL = self.uniqueDestinationURL(for: sourceURL, in: targetFolder)
                 
                 do {
+                    //sposta il file
                     try FileManager.default.moveItem(at: sourceURL, to: destURL)
+                    
+                    // rendilo di nuovo visibile
+                    self.setFilesHidden([destURL], hidden: false)
                     successCount += 1
                 } catch {
                     failureCount += 1
+                    self.setFilesHidden([sourceURL], hidden: false)
                 }
             }
             
@@ -213,6 +226,7 @@ final class FileCutPasteManager: ObservableObject {
             }
         }
     }
+    
     
     // MARK: - AppleScript Helpers
     
@@ -310,4 +324,18 @@ final class FileCutPasteManager: ObservableObject {
         }
         return destURL
     }
+    
+    private func setFilesHidden(_ urls: [URL], hidden: Bool) {
+        let paths = urls.map { $0.path }
+        let script = """
+         repeat with aPath in \(paths)
+             tell application "Finder" to set extension hidden of (POSIX file aPath as alias) to \(hidden)
+             -- Nota: 'extension hidden' nasconde l'estensione, ma per nascondere 
+             -- l'intero file via AppleScript si usa il comando 'visible'
+             do shell script "chflags " & (if \(hidden) then "hidden " else "nohidden ") & quoted form of aPath
+         end repeat
+         """
+        _ = runAppleScript(script)
+    }
+    
 }
